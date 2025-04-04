@@ -1,0 +1,35 @@
+import requests
+from fastapi import APIRouter
+import os
+
+router = APIRouter()
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")  # Resend API Key
+RESEND_API_URL = "https://api.resend.com/v1/messages"
+
+USER_PHONE = os.getenv("USER_PHONE")  # User's phone number
+
+@router.get("/send_notifications")
+def send_notifications():
+    """Fetch, summarize, and send latest 10 email notifications via Resend."""
+    # Fetch latest 10 emails
+    emails = requests.get(FETCH_EMAILS_API, params={"limit": 10}).json()
+
+    # Summarize emails
+    summary = requests.post(SUMMARIZE_EMAILS_API, json={"emails": emails}).json()
+
+    # Format notification message
+    message = "\n".join([f"- {item['summary']}" for item in summary])
+
+    # Send via Resend API (SMS format)
+    payload = {
+        "from": "noreply@yourdomain.com",
+        "to": USER_PHONE,
+        "subject": "Latest Email Summary",
+        "text": message
+    }
+    headers = {"Authorization": f"Bearer {RESEND_API_KEY}"}
+
+    response = requests.post(RESEND_API_URL, json=payload, headers=headers)
+    
+    return {"status": "sent", "response": response.json()}
