@@ -1,0 +1,19 @@
+import requests
+import os
+from apscheduler.schedulers.background import BackgroundScheduler
+
+NOTIFICATION_API = "http://localhost:8000/send_notifications"
+DAILY_DIGEST_API = "http://localhost:8000/daily_digest"
+
+def send_notifications_job():
+    """Trigger notifications API periodically."""
+    requests.get(NOTIFICATION_API)
+
+def send_daily_digest_job():
+    """Trigger daily digest API every 24 hours."""
+    requests.get(DAILY_DIGEST_API)
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(send_notifications_job, "interval", minutes=60)  # Every hour
+scheduler.add_job(send_daily_digest_job, "cron", hour=21, minute=0)  # 9 PM Daily
+scheduler.start()
