@@ -6,26 +6,79 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from app.core.config import settings
+from fastapi import Request as FastAPIRequest
 
-def get_authenticated_service():
-    creds = None
+# Global variable to store the authenticated service and credentials
+_authenticated_service = None
+_credentials = None
 
+def clear_existing_tokens(request: FastAPIRequest):
+    """Delete existing token file and clear session"""
     if os.path.exists(settings.TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(settings.TOKEN_FILE, settings.SCOPES)
-    else:
+        os.remove(settings.TOKEN_FILE)
+    request.session.clear()
+
+def validate_project(creds):
+    """Validate if the project has the correct name and permissions"""
+    try:
+        service = build('gmail', 'v1', credentials=creds)
+        # Get project information
+        project_info = service.users().getProfile(userId='me').execute()
+        # Get the email address
+        email = project_info.get('emailAddress', '')
+        # Check if the email is valid (not empty)
+        if not email:
+            raise ValueError("Could not retrieve email address")
+        return True
+    except Exception as e:
+        raise ValueError(f"Project validation failed: {str(e)}")
+
+def get_authenticated_service(request: FastAPIRequest, force_new_auth=False):
+    """Get authenticated service using session storage"""
+    try:
+        # If forcing new auth, clear session
+        if force_new_auth:
+            clear_existing_tokens(request)
+            
+        # Check if we have credentials in the session
+        if not force_new_auth and "credentials" in request.session:
+            creds_dict = json.loads(request.session["credentials"])
+            creds = Credentials.from_authorized_user_info(creds_dict, settings.SCOPES)
+            validate_project(creds)
+            return build('gmail', 'v1', credentials=creds)
+            
+        # Check if we have valid tokens and not forcing new auth
+        if os.path.exists(settings.TOKEN_FILE) and not force_new_auth:
+            creds = Credentials.from_authorized_user_file(settings.TOKEN_FILE, settings.SCOPES)
+            validate_project(creds)
+            # Store credentials in session
+            request.session["credentials"] = creds.to_json()
+            return build('gmail', 'v1', credentials=creds)
+            
+        # Start new authentication flow
         flow = InstalledAppFlow.from_client_secrets_file(
             settings.CLIENT_SECRET_FILE, settings.SCOPES
         )
         creds = flow.run_local_server(port=0)
+        
+        # Validate project
+        validate_project(creds)
+        
+        # Save new token
         with open(settings.TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
+            
+        # Store credentials in session
+        request.session["credentials"] = creds.to_json()
+        return build('gmail', 'v1', credentials=creds)
+    except Exception as e:
+        raise Exception(f"Authentication failed: {str(e)}")
 
-    service = build('gmail', 'v1', credentials=creds)
-    return service
-
-
-def get_user_email():
-    service = get_authenticated_service()
+def get_user_email(request: FastAPIRequest):
+    """Get the authenticated user's email"""
+    # Only force new auth if we don't have credentials in session
+    force_new_auth = "credentials" not in request.session
+    service = get_authenticated_service(request, force_new_auth=force_new_auth)
     profile = service.users().getProfile(userId='me').execute()
     return profile.get('emailAddress')
 
@@ -59,23 +112,21 @@ def extract_attachments(service, msg_id, payload):
     parts = payload.get("parts", [])
     for part in parts:
         filename = part.get("filename")
-        body = part.get("body", {})
         mime_type = part.get("mimeType")
-        attachment_id = body.get("attachmentId")
+        attachment_id = part.get("body", {}).get("attachmentId")
 
         if filename and attachment_id:
-            content = fetch_attachment(service, msg_id, attachment_id)
             attachments.append({
                 "filename": filename,
-                "mimeType": mime_type,
-                "size": body.get("size"),
-                "attachmentId": attachment_id,
-                "content": base64.b64encode(content).decode("utf-8") if content else None
+                "mimeType": mime_type
             })
     return attachments
 
-def fetch_and_save_emails(limit=5, output_file="emails.json"):
-    service = get_authenticated_service()
+def fetch_and_save_emails(request: FastAPIRequest, limit=50, output_file="emails.json"):
+    """Fetch and save emails using the session-based authenticated service"""
+    # Only force new auth if we don't have credentials in session
+    force_new_auth = "credentials" not in request.session
+    service = get_authenticated_service(request, force_new_auth=force_new_auth)
 
     results = service.users().messages().list(userId='me', maxResults=limit).execute()
     messages = results.get('messages', [])
