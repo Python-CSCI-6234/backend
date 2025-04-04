@@ -1,0 +1,22 @@
+from fastapi import FastAPI, Depends
+import requests
+import os
+
+app = FastAPI()
+
+# Environment Variables (Set these in your .env)
+FETCH_EMAILS_API = os.getenv("FETCH_EMAILS_API")  # API to fetch emails
+SUMMARIZE_EMAILS_API = os.getenv("SUMMARIZE_EMAILS_API")  # API to summarize emails
+
+@app.get("/gist")
+def get_gist():
+    """Fetch and summarize the first 50 emails on user login."""
+    # Step 1: Fetch Emails
+    response = requests.get(FETCH_EMAILS_API, params={"limit": 50})
+    emails = response.json()
+
+    # Step 2: Summarize Emails
+    summary_response = requests.post(SUMMARIZE_EMAILS_API, json={"emails": emails})
+    summary = summary_response.json()
+
+    return {"summary": summary}
