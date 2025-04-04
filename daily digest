@@ -1,0 +1,28 @@
+from datetime import datetime, timedelta
+
+@router.get("/daily_digest")
+def daily_digest():
+    """Fetch, summarize, and send daily email digest."""
+    today = datetime.utcnow().date()
+
+    # Fetch today's emails
+    emails = requests.get(FETCH_EMAILS_API, params={"date": today}).json()
+
+    # Summarize emails
+    summary = requests.post(SUMMARIZE_EMAILS_API, json={"emails": emails}).json()
+
+    # Format digest message
+    digest_message = "\n".join([f"- {item['summary']}" for item in summary])
+
+    # Send via Resend API
+    payload = {
+        "from": "noreply@yourdomain.com",
+        "to": USER_PHONE,
+        "subject": "Your Daily Email Digest",
+        "text": digest_message
+    }
+    headers = {"Authorization": f"Bearer {RESEND_API_KEY}"}
+
+    response = requests.post(RESEND_API_URL, json=payload, headers=headers)
+
+    return {"status": "sent", "response": response.json()}
