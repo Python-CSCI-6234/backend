@@ -1,0 +1,11 @@
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+python-dotenv==1.0.1
+google-auth==2.28.1
+google-auth-oauthlib==1.2.0
+google-api-python-client==2.125.0
+google-cloud-resource-manager==1.10.4
+google-cloud-service-usage==1.9.3
+google-cloud-api-keys==0.5.3
+requests==2.31.0
+google-cloud-resourcemanager==1.10.4
