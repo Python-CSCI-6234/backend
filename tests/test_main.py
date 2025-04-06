@@ -19,11 +19,10 @@ def test_google_auth_url():
     assert response.status_code == 200
     assert "url" in response.json()
 
-@pytest.mark.asyncio
-async def test_fetch_emails():
+def test_fetch_emails():
     # This test requires a valid Google OAuth token
     # You'll need to replace this with a valid token
-    test_token = "your_test_token"
+    test_token = os.getenv("TEST_GOOGLE_TOKEN", "invalid_token")
     response = client.get(
         "/api/emails/fetch",
         headers={"Authorization": f"Bearer {test_token}"}
@@ -55,7 +54,7 @@ def test_summarize_emails():
 
 def test_send_notification():
     test_data = {
-        "phone_number": "test@example.com",
+        "email_address": "test@example.com",
         "emails": [
             {
                 "id": "1",
@@ -70,10 +69,9 @@ def test_send_notification():
     assert response.status_code == 200
     assert response.json()["message"] == "Notification sent successfully"
 
-@pytest.mark.asyncio
-async def test_daily_digest():
+def test_daily_digest():
     # This test requires a valid Google OAuth token
-    test_token = "your_test_token"
+    test_token = os.getenv("TEST_GOOGLE_TOKEN", "invalid_token")
     response = client.get(
         "/api/digest",
         headers={"Authorization": f"Bearer {test_token}"}

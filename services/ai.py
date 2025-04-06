@@ -18,7 +18,8 @@ class AIService:
                 "work": [],
                 "personal": [],
                 "newsletters": [],
-                "other": []
+                "other": [],
+                "important": []
             }
             
             for email in emails:
@@ -28,8 +29,12 @@ class AIService:
                     categories['work'].append(email)
                 elif any(word in subject for word in ['newsletter', 'subscription', 'digest']):
                     categories['newsletters'].append(email)
-                else:
+                elif any(word in subject for word in ['urgent', 'important']):
+                    categories['important'].append(email)
+                elif any(word in subject for word in ['personal', 'family', 'friends']):
                     categories['personal'].append(email)
+                else:
+                    categories['other'].append(email)
             
             summary = {
                 "total_emails": len(emails),
@@ -40,7 +45,7 @@ class AIService:
             
             return summary
         except Exception as e:
-            raise Exception(f"Error summarizing emails: {str(e)}")
+            raise Exception(f"Error summarizing emails: {str(e)}") from e
 
     def generate_notification_summary(self, emails: List[Dict]) -> str:
         """
@@ -59,7 +64,7 @@ class AIService:
             
             return notification_text
         except Exception as e:
-            raise Exception(f"Error generating notification summary: {str(e)}")
+            raise Exception(f"Error generating notification summary: {str(e)}") from e
 
     def generate_daily_digest(self, emails: List[Dict]) -> str:
         """
@@ -73,7 +78,7 @@ class AIService:
                 if category_emails:
                     digest_text += f"📁 {category.upper()} ({len(category_emails)})\n"
                     for email in category_emails[:5]:  # Show first 5 emails per category
-                        digest_text += f"  • {email['subject']}\n"
+                        digest_text += f"  • {email.get('subject', 'No Subject')}\n"
                     if len(category_emails) > 5:
                         digest_text += f"  • ... and {len(category_emails) - 5} more\n"
                     digest_text += "\n"
@@ -81,10 +86,10 @@ class AIService:
             if summary['important_emails']:
                 digest_text += "⚠️ IMPORTANT EMAILS\n"
                 for email in summary['important_emails']:
-                    digest_text += f"  • {email['subject']}\n"
+                    digest_text += f"  • {email.get('subject', 'No Subject')}\n"
             
             return digest_text
         except Exception as e:
-            raise Exception(f"Error generating daily digest: {str(e)}")
+            raise Exception(f"Error generating daily digest: {str(e)}") from e
 
 ai_service = AIService() 
