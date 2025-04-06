@@ -12,7 +12,7 @@ class NotificationService:
         """
         try:
             params = {
-                "from": "Email Organizer <notifications@aialexa.org>",
+                "from": "mailbot <notifications@aialexa.org>",
                 "to": [to],  # Resend expects a list of recipients
                 "subject": subject,
                 "html": content
@@ -37,7 +37,7 @@ class NotificationService:
                         <div style="white-space: pre-line;">
                             {digest_content}
                     </div>
-                    <p>Powered by Email Organizer</p>
+                    <p>Powered by mailbot</p>
                 </body>
                 </html>
                 """
