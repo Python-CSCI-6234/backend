@@ -14,9 +14,13 @@ class UserService:
 
     async def store_user_credentials(self, user_credentials: UserCredentials) -> None:
         """Store user credentials securely"""
+        # Convert the model to a dict with datetime as ISO format string
+        cred_dict = user_credentials.dict()
+        cred_dict['token_expiry'] = user_credentials.token_expiry.isoformat() if user_credentials.token_expiry else None
+        
         # Encrypt sensitive data before storing
         encrypted_data = jwt.encode(
-            user_credentials.dict(),
+            cred_dict,
             settings.SECRET_KEY,
             algorithm=settings.ALGORITHM
         )
@@ -40,6 +44,9 @@ class UserService:
                 settings.SECRET_KEY,
                 algorithms=[settings.ALGORITHM]
             )
+            # Convert ISO format string back to datetime
+            if data.get('token_expiry'):
+                data['token_expiry'] = datetime.fromisoformat(data['token_expiry'])
             return UserCredentials(**data)
         except:
             return None
