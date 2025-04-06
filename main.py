@@ -174,41 +174,20 @@ async def send_notification(token: str, email_address: str, email_data: Dict):
             
         summary = ai_service.generate_notification_summary(emails)
         
-        # Format the summary content
-        formatted_summary = summary.replace('```json', '').replace('```', '').strip()
-        try:
-            # Try to parse as JSON and format it nicely
-            import json
-            summary_data = json.loads(formatted_summary)
-            content = f"""
-            <html>
-                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
-                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <h3 style="color: #2c3e50; margin-top: 0;">{summary_data.get('notification_summary', {}).get('title', 'Priority Email Summary')}</h3>
-                        <p style="color: #34495e; line-height: 1.6;">{summary_data.get('notification_summary', {}).get('content', '')}</p>
-                    </div>
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
-                        <p>Powered by Email Organizer</p>
-                    </div>
-                </body>
-            </html>
-            """
-        except json.JSONDecodeError:
-            # If not valid JSON, use the raw summary
-            content = f"""
-            <html>
-                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
-                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <p style="color: #34495e; line-height: 1.6;">{formatted_summary}</p>
-                    </div>
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
-                        <p>Powered by Email Organizer</p>
-                    </div>
-                </body>
-            </html>
-            """
+        # Create HTML content with the summary
+        content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p style="color: #34495e; line-height: 1.6; white-space: pre-line;">{summary}</p>
+                </div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
+                    <p>Powered by Email Organizer</p>
+                </div>
+            </body>
+        </html>
+        """
         
         # Send notification using Resend
         response = await notification_service.send_email_notification(
