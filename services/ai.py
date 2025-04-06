@@ -170,49 +170,79 @@ class AIService:
             if not emails:
                 return "No new emails to summarize."
 
-            # Get basic email counts for fallback
-            email_counts = {
-                "work": len([e for e in emails if any(word in e.get('subject', '').lower() 
-                    for word in ['work', 'job', 'meeting', 'project'])]),
-                "personal": len([e for e in emails if any(word in e.get('subject', '').lower() 
-                    for word in ['personal', 'family', 'friends'])]),
-                "newsletters": len([e for e in emails if any(word in e.get('subject', '').lower() 
-                    for word in ['newsletter', 'subscription', 'digest'])]),
-                "important": len([e for e in emails if any(word in e.get('subject', '').lower() 
-                    for word in ['urgent', 'important'])]),
-            }
-            
             try:
                 summary = self.summarize_emails(emails)
                 
                 prompt = f"""
-                Create a concise notification summary based on this email analysis:
-                {summary.get('summary_text', '')}
+                Based on this email analysis: {summary.get('summary_text', '')}
+                Create a friendly email summary in the following JSON structure. Return ONLY the JSON, no other text:
 
-                Focus on:
-                1. Most important emails
-                2. Urgent matters
-                3. Key updates
+                {{
+                    "email_summary": {{
+                        "greeting": "A casual, friendly greeting",
+                        "overview": "A brief, conversational overview of the emails",
+                        "attention_needed": ["List of items needing immediate attention"],
+                        "action_items": ["List of things to do"],
+                        "email_list": ["List of email subjects with their importance"],
+                        "closing": "A friendly closing note offering help if needed"
+                    }}
+                }}
 
-                Format it as a brief, easy-to-read notification.
-                Keep it under 100 words.
+                Make it feel personal and helpful, like a personal assistant talking to their boss.
+                Keep the tone friendly but professional.
+                Include ALL email subjects in the email_list.
+                Highlight urgent or important matters in attention_needed.
+                List specific actions needed in action_items.
+                
+                IMPORTANT: Return ONLY the JSON object, no additional text, no code blocks, no explanations.
                 """
 
-                notification_text = self._call_openrouter(prompt)
-                if "Error processing request" in notification_text:
-                    raise Exception(notification_text)
-                return notification_text
+                response = self._call_openrouter(prompt)
+                if "Error processing request" in response:
+                    raise Exception(response)
+                    
+                # Try to parse the response to ensure it's valid JSON
+                try:
+                    json.loads(response)
+                    return response
+                except json.JSONDecodeError:
+                    # If not valid JSON, try to extract JSON from the response
+                    import re
+                    json_match = re.search(r'({[\s\S]*})', response)
+                    if json_match:
+                        return json_match.group(1)
+                    raise ValueError("Response is not valid JSON")
+                
             except Exception as e:
                 logger.error(f"Error generating AI summary: {str(e)}")
-                # Fallback to basic summary
-                return f"""📧 New Email Summary:
-• {email_counts['work']} work-related emails
-• {email_counts['personal']} personal emails
-• {email_counts['newsletters']} newsletters
-• {email_counts['important']} important emails requiring attention"""
+                # Create a basic JSON structure as fallback
+                email_list = [f"{email.get('subject', 'No Subject')} (From: {email.get('from', 'Unknown Sender')})" 
+                            for email in emails]
+                
+                basic_summary = {
+                    "email_summary": {
+                        "greeting": "Hey there!",
+                        "overview": "Here's a quick summary of your emails:",
+                        "attention_needed": [],
+                        "action_items": [],
+                        "email_list": email_list,
+                        "closing": "Let me know if you need anything else!"
+                    }
+                }
+                return json.dumps(basic_summary)
+                
         except Exception as e:
             logger.error(f"Error in generate_notification_summary: {str(e)}")
-            return "Error generating notification summary. Please check the logs for details."
+            return json.dumps({
+                "email_summary": {
+                    "greeting": "Hey there!",
+                    "overview": "Sorry, I encountered an error while processing your emails.",
+                    "attention_needed": [],
+                    "action_items": [],
+                    "email_list": [],
+                    "closing": "Please try again later."
+                }
+            })
 
     def generate_daily_digest(self, emails: List[Dict]) -> str:
         """
