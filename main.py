@@ -98,7 +98,7 @@ async def google_auth_callback(code: str):
         
         # Store user credentials
         user_creds = UserCredentials(
-            user_id=user_info["sub"],
+            user_id=user_info["id"],
             email=user_info["email"],
             access_token=credentials.token,
             refresh_token=credentials.refresh_token,
