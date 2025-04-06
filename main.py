@@ -174,20 +174,105 @@ async def send_notification(token: str, email_address: str, email_data: Dict):
             
         summary = ai_service.generate_notification_summary(emails)
         
-        # Create HTML content with the summary
-        content = f"""
-        <html>
-            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p style="color: #34495e; line-height: 1.6; white-space: pre-line;">{summary}</p>
-                </div>
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
-                    <p>Powered by Email Organizer</p>
-                </div>
-            </body>
-        </html>
-        """
+        # Parse the JSON if it's in the response
+        try:
+            import json
+            import re
+            
+            # First, clean up the response by removing all JSON markers and extra whitespace
+            clean_text = re.sub(r'```json\s*|\s*```', '', summary)
+            clean_text = re.sub(r'^\s*\.\.\.\s*$', '', clean_text, flags=re.MULTILINE)  # Remove lines with just dots
+            clean_text = '\n'.join(line for line in clean_text.splitlines() if line.strip())  # Remove empty lines
+            
+            # Find the actual JSON content
+            json_match = re.search(r'({[\s\S]*})', clean_text)
+            if json_match:
+                json_str = json_match.group(1)
+                # Parse the JSON
+                summary_data = json.loads(json_str)
+                
+                # Extract components from the structured data
+                email_summary = summary_data.get('email_summary', {})
+                greeting = email_summary.get('greeting', 'Hey there!')
+                overview = email_summary.get('overview', '')
+                attention_needed = email_summary.get('attention_needed', [])
+                action_items = email_summary.get('action_items', [])
+                email_list = email_summary.get('email_list', [])
+                closing = email_summary.get('closing', '')
+                
+                # Create HTML content with structured data
+                content = f"""
+                <html>
+                    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.6;">
+                        <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
+                        
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <p style="color: #34495e; font-size: 18px; margin-top: 0;">{greeting}</p>
+                            
+                            <p style="color: #34495e;">{overview}</p>
+                            
+                            {attention_needed and f'''
+                            <div style="margin: 15px 0;">
+                                <h3 style="color: #e74c3c; margin: 0 0 10px 0;">⚠️ Needs Your Attention</h3>
+                                <ul style="margin: 0; padding-left: 20px; color: #34495e;">
+                                    {"".join(f'<li style="margin-bottom: 5px;">{item}</li>' for item in attention_needed)}
+                                </ul>
+                            </div>
+                            ''' or ''}
+                            
+                            {action_items and f'''
+                            <div style="margin: 15px 0;">
+                                <h3 style="color: #27ae60; margin: 0 0 10px 0;">✅ Action Items</h3>
+                                <ul style="margin: 0; padding-left: 20px; color: #34495e;">
+                                    {"".join(f'<li style="margin-bottom: 5px;">{item}</li>' for item in action_items)}
+                                </ul>
+                            </div>
+                            ''' or ''}
+                            
+                            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+                                <h3 style="color: #2c3e50; margin: 0 0 15px 0;">📥 Your Emails</h3>
+                                <div style="color: #34495e;">
+                                    {"".join(f'<p style="margin: 0 0 15px 0;"><strong>{email}</strong></p>' for email in email_list)}
+                                </div>
+                            </div>
+                            
+                            {closing and f'''
+                            <p style="color: #7f8c8d; margin-top: 20px; font-style: italic;">{closing}</p>
+                            ''' or ''}
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
+                            <p>Powered by Email Organizer</p>
+                        </div>
+                    </body>
+                </html>
+                """
+            else:
+                raise ValueError("No valid JSON found in the response")
+                
+        except Exception as e:
+            logger.error(f"Error parsing summary JSON: {str(e)}")
+            # Log the raw summary for debugging
+            logger.debug(f"Raw summary: {summary}")
+            
+            # Fallback to simple format
+            content = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.6;">
+                    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📧 New Email Summary</h2>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <div style="white-space: pre-line; color: #34495e;">
+                            {summary}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
+                        <p>Powered by Email Organizer</p>
+                    </div>
+                </body>
+            </html>
+            """
         
         # Send notification using Resend
         response = await notification_service.send_email_notification(
