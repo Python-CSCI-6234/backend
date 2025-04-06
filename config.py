@@ -29,6 +29,14 @@ class Settings:
     API_V1_STR = "/api/v1"
     PROJECT_NAME = "Email Organizer API"
 
+    # OpenAI settings
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+    # OpenRouter settings
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+    SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
+    SITE_NAME = os.getenv("SITE_NAME", "Email Organizer")
+
     def __init__(self):
         # Log the loaded settings (without sensitive data)
         logger.debug(f"GOOGLE_REDIRECT_URI: {self.GOOGLE_REDIRECT_URI}")
