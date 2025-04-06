@@ -19,6 +19,7 @@ class Settings:
     # Email processing settings
     BATCH_SIZE = 50  # Number of emails to process in one batch
     MAX_EMAILS_PER_SUMMARY = 10  # Maximum number of emails to include in notifications
+    MAX_EMAILS = 10  # Maximum number of emails to fetch
     
     # Security settings
     SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
