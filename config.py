@@ -1,5 +1,8 @@
 import os
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -25,5 +28,13 @@ class Settings:
     # API settings
     API_V1_STR = "/api/v1"
     PROJECT_NAME = "Email Organizer API"
+
+    def __init__(self):
+        # Log the loaded settings (without sensitive data)
+        logger.debug(f"GOOGLE_REDIRECT_URI: {self.GOOGLE_REDIRECT_URI}")
+        logger.debug(f"BATCH_SIZE: {self.BATCH_SIZE}")
+        logger.debug(f"MAX_EMAILS_PER_SUMMARY: {self.MAX_EMAILS_PER_SUMMARY}")
+        logger.debug(f"API_V1_STR: {self.API_V1_STR}")
+        logger.debug(f"PROJECT_NAME: {self.PROJECT_NAME}")
 
 settings = Settings() 
