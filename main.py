@@ -106,9 +106,15 @@ async def google_auth_callback(code: str):
         )
         await user_service.store_user_credentials(user_creds)
         
+        # Return a JSON-serializable response
         return {
             "user_info": user_info,
-            "credentials": credentials.to_json()
+            "credentials": {
+                "access_token": credentials.token,
+                "refresh_token": credentials.refresh_token,
+                "token_expiry": credentials.expiry.isoformat() if credentials.expiry else None,
+                "scopes": credentials.scopes
+            }
         }
     except HTTPException as he:
         logger.error(f"HTTP Exception in auth callback: {str(he)}")
