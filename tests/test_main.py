@@ -54,20 +54,24 @@ def test_summarize_emails():
 
 def test_send_notification():
     test_data = {
+        "token": "test_token",
         "email_address": "test@example.com",
-        "emails": [
-            {
-                "id": "1",
-                "from": "test@example.com",
-                "subject": "Test Email",
-                "date": "2024-01-01",
-                "snippet": "This is a test email"
-            }
-        ]
+        "email_data": {
+            "emails": [
+                {
+                    "id": "1",
+                    "from": "test@example.com",
+                    "subject": "Test Email",
+                    "date": "2024-01-01",
+                    "snippet": "This is a test email"
+                }
+            ]
+        }
     }
     response = client.post("/api/notifications", json=test_data)
     assert response.status_code == 200
     assert response.json()["message"] == "Notification sent successfully"
+    assert "resend_response" in response.json()
 
 def test_daily_digest():
     # This test requires a valid Google OAuth token

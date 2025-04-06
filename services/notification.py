@@ -1,26 +1,24 @@
-from resend import Resend
+import resend
 from config import settings
 from typing import Dict, List
-import json
-import asyncio
 
 class NotificationService:
     def __init__(self):
-        self.resend = Resend(api_key=settings.RESEND_API_KEY)
+        resend.api_key = settings.RESEND_API_KEY
 
-    async def send_email_notification(self, to: str, subject: str, content: str) -> dict:
+    async def send_email_notification(self, to: str, subject: str, content: str) -> Dict:
         """
         Send an email notification using Resend
         """
         try:
-             # If Resend API is not async, you can use asyncio.to_thread to make it non-blocking
-            response = await asyncio.to_thread(self.resend.emails.send, {
-                "from": "Email Organizer <notifications@emailorganizer.com>",
-                "to": to,
+            params = {
+                "from": "Email Organizer <notifications@aialexa.org>",
+                "to": [to],  # Resend expects a list of recipients
                 "subject": subject,
                 "html": content
-            })
-            return response
+            }
+            email = resend.Emails.send(params)
+            return email
         except Exception as e:
             raise Exception(f"Error sending email notification: {str(e)}") from e
 
