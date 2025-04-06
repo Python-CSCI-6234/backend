@@ -3,7 +3,7 @@ from googleapiclient.discovery import build
 from fastapi import HTTPException
 from google.oauth2.credentials import Credentials
 import logging
-
+from config import settings
 logger = logging.getLogger(__name__)
 
 class EmailService:
@@ -14,7 +14,7 @@ class EmailService:
         """Fetch emails from Gmail"""
         try:
             logger.debug("Starting to fetch emails")
-            logger.debug(f"Using credentials: {credentials.to_json()}")
+            logger.debug("Using credentials for Gmail API access")
             
             # Build the Gmail service
             service = build('gmail', 'v1', credentials=credentials)
@@ -30,7 +30,7 @@ class EmailService:
                 
             # Fetch full message details
             emails = []
-            for message in messages[:10]:  # Limit to 10 emails for testing
+            for message in messages[:settings.MAX_EMAILS]:  # Limit to 10 emails for testing
                 try:
                     msg = service.users().messages().get(userId='me', id=message['id']).execute()
                     
@@ -68,4 +68,4 @@ class EmailService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to fetch emails: {str(e)}"
-            ) 
+            ) from e
