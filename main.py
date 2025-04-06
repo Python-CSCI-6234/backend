@@ -7,14 +7,18 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 from auth.google_auth import google_auth
 from services.email import EmailService
-from services.ai import ai_service
-from services.notification import notification_service
+from services.ai import AIService, ai_service
+from services.notification import NotificationService, notification_service
 from config import settings
 import logging
 from fastapi.responses import RedirectResponse
 from google.oauth2.credentials import Credentials
 from fastapi import HTTPException
 from services.email_service import EmailService
+from services.user_service import user_service
+from datetime import datetime, timezone
+import pytz
+from models.user import UserCredentials
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -91,6 +95,16 @@ async def google_auth_callback(code: str):
             raise HTTPException(status_code=400, detail="No user info returned")
             
         logger.debug(f"Successfully authenticated user: {user_info.get('email')}")
+        
+        # Store user credentials
+        user_creds = UserCredentials(
+            user_id=user_info["sub"],
+            email=user_info["email"],
+            access_token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            token_expiry=credentials.expiry,
+        )
+        await user_service.store_user_credentials(user_creds)
         
         return {
             "user_info": user_info,
@@ -199,9 +213,66 @@ async def generate_daily_digest(token: str):
 @scheduler.scheduled_job('cron', hour=0, minute=0)
 async def scheduled_daily_digest():
     """Scheduled task to generate and send daily digest"""
-    # TODO: Implement scheduled daily digest logic
-    # This would require storing user credentials securely
-    pass
+    try:
+        # Get all users who have enabled daily digest
+        users = await user_service.get_all_users_for_digest()
+        
+        for user in users:
+            # Check if it's the right time for this user's timezone
+            user_tz = pytz.timezone(user.preferences.get("timezone", "UTC"))
+            user_time = datetime.now(user_tz)
+            digest_time = datetime.strptime(
+                user.preferences.get("digest_time", "00:00"),
+                "%H:%M"
+            ).time()
+            
+            if user_time.time().hour == digest_time.hour and \
+               user_time.time().minute == digest_time.minute:
+                try:
+                    # Create services
+                    email_service = EmailService()
+                    ai_service = AIService()
+                    notification_service = NotificationService()
+                    
+                    # Fetch emails from the last 24 hours
+                    emails = await email_service.fetch_emails(
+                        user.access_token,
+                        time_range="1d"
+                    )
+                    
+                    # Generate digest
+                    digest_content = ai_service.generate_daily_digest(emails)
+                    
+                    # Send notification
+                    await notification_service.send_daily_digest(
+                        to=user.email,
+                        digest_content=digest_content
+                    )
+                    
+                except Exception as e:
+                    logger.error(f"Error processing digest for user {user.email}: {str(e)}")
+                    continue
+    
+    except Exception as e:
+        logger.error(f"Error in scheduled daily digest: {str(e)}")
+
+# Add new endpoint to update user preferences
+@app.post("/api/preferences")
+async def update_preferences(
+    preferences: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        user_creds = await user_service.get_user_credentials(current_user["sub"])
+        if not user_creds:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_creds.preferences.update(preferences)
+        await user_service.store_user_credentials(user_creds)
+        return {"status": "success", "preferences": user_creds.preferences}
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Start scheduler when application starts
 @app.on_event("startup")
