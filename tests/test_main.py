@@ -12,7 +12,7 @@ client = TestClient(app)
 def test_root():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Email Organizer API"}
+    assert response.json() == {"message": "mailbot API"}
 
 def test_google_auth_url():
     response = client.get("/auth/google")

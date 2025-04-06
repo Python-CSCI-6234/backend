@@ -1,4 +1,4 @@
-# Email Organizer Backend
+# mailbot Backend
 
 A FastAPI-based backend service for organizing and summarizing emails using Google OAuth and AI processing.
 

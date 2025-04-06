@@ -32,7 +32,7 @@ logger.debug(f"GOOGLE_CLIENT_ID: {os.getenv('GOOGLE_CLIENT_ID')}")
 logger.debug(f"GOOGLE_CLIENT_SECRET: {os.getenv('GOOGLE_CLIENT_SECRET')}")
 logger.debug(f"GOOGLE_REDIRECT_URI: {os.getenv('GOOGLE_REDIRECT_URI')}")
 
-app = FastAPI(title="Email Organizer API")
+app = FastAPI(title="mailbot API")
 
 # CORS middleware configuration
 app.add_middleware(
@@ -242,7 +242,7 @@ async def send_notification(token: str, email_address: str, email_data: Dict):
                         </div>
                         
                         <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
-                            <p>Powered by Email Organizer</p>
+                            <p>Powered by mailbot</p>
                         </div>
                     </body>
                 </html>
@@ -268,7 +268,7 @@ async def send_notification(token: str, email_address: str, email_data: Dict):
                     </div>
                     
                     <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; color: #7f8c8d; font-size: 12px;">
-                        <p>Powered by Email Organizer</p>
+                        <p>Powered by mailbot</p>
                     </div>
                 </body>
             </html>

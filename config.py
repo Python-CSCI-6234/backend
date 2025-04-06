@@ -28,7 +28,7 @@ class Settings:
     
     # API settings
     API_V1_STR = "/api/v1"
-    PROJECT_NAME = "Email Organizer API"
+    PROJECT_NAME = "mailbot API"
 
     # OpenAI settings
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -36,7 +36,7 @@ class Settings:
     # OpenRouter settings
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
-    SITE_NAME = os.getenv("SITE_NAME", "Email Organizer")
+    SITE_NAME = os.getenv("SITE_NAME", "mailbot")
 
     def __init__(self):
         # Log the loaded settings (without sensitive data)
