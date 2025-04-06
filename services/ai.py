@@ -252,22 +252,82 @@ class AIService:
             summary = self.summarize_emails(emails)
             
             prompt = f"""
-            Create a comprehensive daily digest based on this email analysis:
-            {summary['summary_text']}
+            Based on this email analysis: {summary['summary_text']}
+            Create a comprehensive daily digest in the following JSON structure. Return ONLY the JSON, no markdown or code blocks:
 
-            Include:
-            1. Overview of the day's emails
-            2. Important updates and announcements
-            3. Action items and follow-ups
-            4. Key discussions and decisions
+            {{
+                "daily_digest": {{
+                    "overview": {{
+                        "description": "A friendly summary of today's emails",
+                        "total_emails_processed": "Number of emails processed",
+                        "main_topics": ["List of main topics discussed"]
+                    }},
+                    "important_updates_and_announcements": {{
+                        "updates": ["List of important updates"],
+                        "announcements": ["List of announcements"],
+                        "notes": "Any additional notes about updates"
+                    }},
+                    "action_items_and_follow_ups": {{
+                        "key_action_items": ["List of things that need to be done"],
+                        "follow_ups": ["List of items needing follow-up"],
+                        "deadlines": "Any important deadlines"
+                    }},
+                    "key_discussions_and_decisions": {{
+                        "discussions": ["List of important discussions"],
+                        "decisions": ["List of decisions made"],
+                        "notes": "Additional context about discussions"
+                    }},
+                    "additional_notes": "Any other important information"
+                }}
+            }}
 
-            Format it as a well-structured daily report.
+            IMPORTANT: Return ONLY the JSON object, no markdown, no code blocks, no additional text.
+            Make it friendly and conversational while maintaining professionalism.
             """
 
-            digest_text = self._call_openrouter(prompt)
-            return digest_text
+            response = self._call_openrouter(prompt)
+            if "Error processing request" in response:
+                raise Exception(response)
+                
+            # Try to parse the response to ensure it's valid JSON
+            try:
+                json.loads(response)
+                return response
+            except json.JSONDecodeError:
+                # If not valid JSON, try to extract JSON from the response
+                import re
+                json_match = re.search(r'({[\s\S]*})', response)
+                if json_match:
+                    return json_match.group(1)
+                raise ValueError("Response is not valid JSON")
+                
         except Exception as e:
             logger.error(f"Error generating daily digest: {str(e)}")
-            raise Exception(f"Failed to generate daily digest: {str(e)}")
+            # Return a basic digest structure as fallback
+            return json.dumps({
+                "daily_digest": {
+                    "overview": {
+                        "description": "Sorry, I encountered an error while generating your daily digest.",
+                        "total_emails_processed": "0",
+                        "main_topics": []
+                    },
+                    "important_updates_and_announcements": {
+                        "updates": [],
+                        "announcements": [],
+                        "notes": "Unable to process updates at this time."
+                    },
+                    "action_items_and_follow_ups": {
+                        "key_action_items": [],
+                        "follow_ups": [],
+                        "deadlines": "None"
+                    },
+                    "key_discussions_and_decisions": {
+                        "discussions": [],
+                        "decisions": [],
+                        "notes": "Unable to process discussions at this time."
+                    },
+                    "additional_notes": "Please try again later."
+                }
+            })
 
 ai_service = AIService() 

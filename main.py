@@ -301,7 +301,32 @@ async def generate_daily_digest(token: str):
         email_service = EmailService()
         emails = await email_service.fetch_emails(creds)
         digest_content = ai_service.generate_daily_digest(emails)
-        return {"digest": digest_content}
+        
+        # Parse the JSON if it's in the response
+        try:
+            import json
+            import re
+            
+            # Clean up the response by removing all JSON markers and extra whitespace
+            clean_text = re.sub(r'```json\s*|\s*```', '', digest_content)
+            clean_text = re.sub(r'^\s*\.\.\.\s*$', '', clean_text, flags=re.MULTILINE)  # Remove lines with just dots
+            clean_text = '\n'.join(line for line in clean_text.splitlines() if line.strip())  # Remove empty lines
+            
+            # Find the actual JSON content
+            json_match = re.search(r'({[\s\S]*})', clean_text)
+            if json_match:
+                json_str = json_match.group(1)
+                # Parse and re-serialize to ensure clean JSON
+                digest_data = json.loads(json_str)
+                return digest_data
+            else:
+                raise ValueError("No valid JSON found in the response")
+                
+        except Exception as e:
+            logger.error(f"Error parsing digest JSON: {str(e)}")
+            # Return the raw digest content as fallback
+            return {"digest": digest_content}
+            
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -355,16 +380,35 @@ async def scheduled_daily_digest():
 # Add new endpoint to update user preferences
 @app.post("/api/preferences")
 async def update_preferences(
-    preferences: dict,
-    current_user: dict = Depends(get_current_user)
+    token: str,
+    preferences: dict
 ):
     try:
-        user_creds = await user_service.get_user_credentials(current_user["sub"])
+        # Create credentials with required fields
+        creds = Credentials(
+            token=token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            scopes=['https://www.googleapis.com/auth/gmail.readonly']
+        )
+        
+        # Get user info to get user ID
+        user_info = google_auth.get_user_info(creds)
+        if not user_info:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Get user credentials
+        user_creds = await user_service.get_user_credentials(user_info["id"])
         if not user_creds:
             raise HTTPException(status_code=404, detail="User not found")
         
+        # Update preferences
+        if not hasattr(user_creds, 'preferences'):
+            user_creds.preferences = {}
         user_creds.preferences.update(preferences)
         await user_service.store_user_credentials(user_creds)
+        
         return {"status": "success", "preferences": user_creds.preferences}
     
     except Exception as e:
